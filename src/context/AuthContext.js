@@ -1,86 +1,84 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { jwtDecode } from "jwt-decode";
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
-const isTokenValid = (token) => {
-  if (!token) {
-    console.log("no token provided");
-    return null;
-  }
-  try {
-    const decoded = jwtDecode(token);    
-    return decoded.exp * 1000 > Date.now() ? decoded : null;
-  } catch (e) {
-    console.log("error occured..");
-    return null;
-  }
-};
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
-  const login = (token, user) => {
-    setToken(token);
-    setUser(user);
+  const login = (userData) => {
+    setUser(userData);
     setIsAuthenticated(true);
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("user", JSON.stringify(userData));
+    }
   };
 
   const logout = () => {
-    setToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("user");
+    }
   };
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    const decoded = isTokenValid(savedToken);
+    setIsClient(true);
+    
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem("user");
 
-    if (decoded && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
-
-      if (decoded.exp) {
-        const timeout = decoded.exp * 1000 - Date.now();        
-        if (timeout > 0) {
-          setTimeout(() => logout(), timeout);
-        } else {
-          logout();
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser);
+          setUser(userData);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error("Error parsing saved user data:", error);
+          localStorage.removeItem("user");
         }
       }
-    } else {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
     }
 
     setLoading(false);
   }, []);
 
+  // Don't render children until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <AuthContext.Provider
+        value={{
+          user: null,
+          isAuthenticated: false,
+          loading: true,
+          login,
+          logout,
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+    );
+  }
+
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
         isAuthenticated,
         loading,
         login,
         logout,
       }}
     >
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
+
+export { AuthContext };
