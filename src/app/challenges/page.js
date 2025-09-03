@@ -264,7 +264,7 @@ const Challenges = () => {
                         rel="noopener noreferrer"
                         className="inline-flex items-center bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 mr-2"
                       >
-                        📁 Download File
+                        📁 {file.name || `File ${fileIndex + 1}`}
                       </a>
                     ))}
                   </div>
